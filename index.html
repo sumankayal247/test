@@ -245,8 +245,49 @@
       }
     }
     bird.position.set(-1.5, 0, 1);
-    bird.scale.setScalar(0.9);
+    bird.scale.setScalar(0.63);
     scene.add(bird);
+
+    // A small street cat runs over and eats the sparrow if it lands on the ground.
+    const cat = new THREE.Group();
+    const catFur = new THREE.MeshStandardMaterial({ color: 0xc78345, roughness: 0.92 });
+    const catCream = new THREE.MeshStandardMaterial({ color: 0xf0d7ad, roughness: 0.95 });
+    const catDark = new THREE.MeshStandardMaterial({ color: 0x593b2b, roughness: 0.8 });
+    const catEye = new THREE.MeshStandardMaterial({ color: 0x17251a, roughness: 0.3 });
+    ellipsoid(cat, catFur, [0.05, 0, 0], [0.48, 0.23, 0.2], 24);
+    ellipsoid(cat, catCream, [-0.03, -0.13, 0.17], [0.28, 0.09, 0.055], 20);
+    const catHead = new THREE.Group();
+    catHead.position.set(-0.34, 0.13, 0.02);
+    cat.add(catHead);
+    ellipsoid(catHead, catFur, [0, 0, 0], [0.25, 0.24, 0.21], 24);
+    for (const side of [-1, 1]) {
+      const ear = new THREE.Mesh(new THREE.ConeGeometry(0.105, 0.25, 4), catFur);
+      ear.position.set(side * 0.15, 0.2, 0);
+      ear.rotation.z = side * -0.2;
+      catHead.add(ear);
+      ellipsoid(catHead, catCream, [side * 0.105, 0.015, 0.19], [0.035, 0.055, 0.018], 12);
+      ellipsoid(catHead, catEye, [side * 0.105, 0.035, 0.205], [0.018, 0.032, 0.012], 12);
+    }
+    ellipsoid(catHead, catCream, [-0.04, -0.09, 0.17], [0.13, 0.075, 0.07], 16);
+    ellipsoid(catHead, catDark, [-0.07, -0.055, 0.235], [0.035, 0.025, 0.015], 12);
+    const catTail = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.065, 0.72, 10), catFur);
+    catTail.position.set(0.48, 0.28, -0.02);
+    catTail.rotation.z = -1.05;
+    cat.add(catTail);
+    const catLegs = [];
+    for (const x of [-0.2, 0.28]) {
+      for (const z of [-0.12, 0.13]) {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.045, 0.3, 10), catFur);
+        leg.position.set(x, -0.2, z);
+        cat.add(leg);
+        catLegs.push(leg);
+      }
+    }
+    cat.position.set(8, -3.45, 2);
+    cat.visible = false;
+    scene.add(cat);
+    let catPhase = "idle";
+    let catEatTime = 0;
     const pipeMaterial = new THREE.MeshStandardMaterial({ color: 0x279b42, roughness: 0.3, metalness: 0.08 });
     const pipeHighlight = new THREE.MeshStandardMaterial({ color: 0x68d879, roughness: 0.28, metalness: 0.06 });
     const pipeDark = new THREE.MeshStandardMaterial({ color: 0x176d35, roughness: 0.42 });
@@ -379,10 +420,17 @@
       bird.rotation.z = 0.28;
       flapSound();
     }
-    function endGame() {
+    function endGame(reason = "") {
       if (state !== "playing") return;
       state = "over";
       crashSound();
+      if (reason === "ground") {
+        cat.visible = true;
+        cat.position.set(8, -3.45, 2);
+        catPhase = "running";
+        catEatTime = 0;
+        bird.visible = true;
+      }
       panelTitle.textContent = "Flight Over!";
       panelCopy.innerHTML = "You scored <strong>" + score + "</strong> point" + (score === 1 ? "" : "s") + ".<br>Take off again and beat your best!";
       startButton.textContent = "FLY AGAIN";
@@ -447,8 +495,8 @@
           pipe.group.position.x -= 3.1 * delta;
           const bx = bird.position.x;
           const by = bird.position.y;
-          const birdRadius = 0.36;
-          const withinX = Math.abs(pipe.group.position.x - bx) < pipeRadius + 0.48;
+          const birdRadius = 0.25;
+          const withinX = Math.abs(pipe.group.position.x - bx) < pipeRadius + 0.35;
           const outsideGap = by - birdRadius < pipe.gapY - gap / 2 || by + birdRadius > pipe.gapY + gap / 2;
           if (withinX && outsideGap) endGame();
           if (!pipe.scored && pipe.group.position.x + pipeWidth / 2 < bx) {
@@ -469,10 +517,28 @@
           nextPipeX = pipes[pipes.length - 1].group.position.x + THREE.MathUtils.randFloat(6.4, 7.6);
           makePipe(nextPipeX, randomGapY(previousGapY));
         }
-        if (bird.position.y < -3.35 || bird.position.y > 3.75) endGame();
+        if (bird.position.y < -3.35) endGame("ground");
+        else if (bird.position.y > 3.75) endGame();
       } else if (state === "ready") {
         bird.position.y = Math.sin(elapsed * 2.5) * 0.12;
         bird.rotation.z = Math.sin(elapsed * 2.5) * 0.05;
+      }
+      if (catPhase === "running") {
+        cat.position.x = Math.max(bird.position.x + 0.52, cat.position.x - 5.2 * delta);
+        const runBeat = Math.sin(elapsed * 19);
+        catLegs.forEach((leg, i) => { leg.rotation.z = runBeat * (i % 2 ? 0.55 : -0.55); });
+        if (cat.position.x <= bird.position.x + 0.52) {
+          catPhase = "eating";
+          catEatTime = 0;
+          catLegs.forEach(leg => { leg.rotation.z = 0; });
+        }
+      } else if (catPhase === "eating") {
+        catEatTime += delta;
+        catHead.rotation.z = Math.sin(catEatTime * 15) * 0.22 - 0.18;
+        if (catEatTime > 0.55) {
+          bird.visible = false;
+          catHead.rotation.z = -0.12;
+        }
       }
       renderer.render(scene, camera);
     }
