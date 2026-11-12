@@ -395,6 +395,10 @@
       score = 0;
       scoreEl.textContent = "0";
       velocity = 0;
+      bird.visible = true;
+      cat.visible = false;
+      catPhase = "idle";
+      catHead.rotation.z = 0;
       bird.position.set(-1.5, 0, 1);
       bird.rotation.z = 0;
       wingNear.rotation.z = 0;
