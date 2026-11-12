@@ -8,10 +8,11 @@ A small Flappy Bird-inspired game built with [Three.js](https://threejs.org/). N
 
 ## Features
 
-- 3D bird with continuously animated, visibly flapping wings
+- Detailed 3D house sparrow with layered plumage, tail feathers, facial markings, legs and continuously animated wings
 - Layered city skyline with rooftop details and illuminated windows
 - Smooth day, sunset and night cycle with a sun, moon and stars
 - Synthesized flap, point and crash sound effects (no external audio files)
+- Rounded cylindrical 3D pipe obstacles with varied starting heights and spacing
 - Score counter, pipe obstacles and responsive touch controls
 
 ## Controls
