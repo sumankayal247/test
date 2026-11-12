@@ -270,6 +270,29 @@
     }
     ellipsoid(catHead, catCream, [-0.04, -0.09, 0.17], [0.13, 0.075, 0.07], 16);
     ellipsoid(catHead, catDark, [-0.07, -0.055, 0.235], [0.035, 0.025, 0.015], 12);
+    // Nose, mouth, whisker pads and fine whiskers make the face more expressive.
+    const catPink = new THREE.MeshStandardMaterial({ color: 0xd98782, roughness: 0.72 });
+    ellipsoid(catHead, catPink, [-0.07, -0.075, 0.25], [0.035, 0.025, 0.018], 12);
+    for (const side of [-1, 1]) {
+      ellipsoid(catHead, catCream, [-0.13, -0.105, 0.22], [0.07, 0.045, 0.035], 14);
+      for (let w = 0; w < 2; w++) {
+        const whisker = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.24, 6), catCream);
+        whisker.position.set(-0.2, -0.09 - w * 0.035, 0.23);
+        whisker.rotation.z = (w ? -0.2 : 0.2) * side;
+        catHead.add(whisker);
+      }
+    }
+    const catMouth = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.008, 6, 16, Math.PI), catDark);
+    catMouth.position.set(-0.07, -0.13, 0.245);
+    catMouth.rotation.z = Math.PI;
+    catHead.add(catMouth);
+    // Tabby forehead stripes and darker rings along the tail.
+    for (let i = 0; i < 3; i++) {
+      const stripe = new THREE.Mesh(new THREE.TorusGeometry(0.075 + i * 0.018, 0.012, 6, 16, Math.PI * 0.72), catDark);
+      stripe.position.set(0.035 + i * 0.055, 0.17 - i * 0.018, 0.13);
+      stripe.rotation.z = -0.2;
+      catHead.add(stripe);
+    }
     const catTail = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.065, 0.72, 10), catFur);
     catTail.position.set(0.48, 0.28, -0.02);
     catTail.rotation.z = -1.05;
@@ -280,14 +303,45 @@
         const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.045, 0.3, 10), catFur);
         leg.position.set(x, -0.2, z);
         cat.add(leg);
+        const paw = new THREE.Mesh(new THREE.SphereGeometry(0.09, 14, 10), catCream);
+        paw.scale.set(1.15, 0.58, 1);
+        paw.position.set(x - 0.015, -0.34, z + 0.015);
+        cat.add(paw);
         catLegs.push(leg);
       }
     }
+    // Scale the cat up so it is unmistakably larger than the sparrow.
+    cat.scale.setScalar(1.7);
     cat.position.set(8, -3.45, 2);
     cat.visible = false;
     scene.add(cat);
     let catPhase = "idle";
     let catEatTime = 0;
+
+    // Stylized, non-graphic red droplets appear briefly after the bird disappears.
+    const bloodParticles = [];
+    const bloodMaterial = new THREE.MeshStandardMaterial({ color: 0xa81725, roughness: 0.65 });
+    const bloodDarkMaterial = new THREE.MeshStandardMaterial({ color: 0x650d1b, roughness: 0.7 });
+    const bloodGroup = new THREE.Group();
+    bloodGroup.visible = false;
+    scene.add(bloodGroup);
+    function burstBlood() {
+      bloodGroup.clear();
+      bloodParticles.length = 0;
+      bloodGroup.position.set(bird.position.x, -3.48, 1.4);
+      for (let i = 0; i < 18; i++) {
+        const radius = THREE.MathUtils.randFloat(0.025, 0.065);
+        const drop = new THREE.Mesh(new THREE.SphereGeometry(radius, 10, 8), i % 4 === 0 ? bloodDarkMaterial : bloodMaterial);
+        drop.scale.y = THREE.MathUtils.randFloat(1.1, 1.8);
+        drop.position.set(THREE.MathUtils.randFloat(-0.32, 0.32), THREE.MathUtils.randFloat(0, 0.2), THREE.MathUtils.randFloat(-0.1, 0.2));
+        bloodGroup.add(drop);
+        bloodParticles.push({
+          mesh: drop,
+          velocity: new THREE.Vector3(THREE.MathUtils.randFloat(-1.5, 1.5), THREE.MathUtils.randFloat(0.7, 2.7), THREE.MathUtils.randFloat(-0.3, 0.3))
+        });
+      }
+      bloodGroup.visible = true;
+    }
     const pipeMaterial = new THREE.MeshStandardMaterial({ color: 0x279b42, roughness: 0.3, metalness: 0.08 });
     const pipeHighlight = new THREE.MeshStandardMaterial({ color: 0x68d879, roughness: 0.28, metalness: 0.06 });
     const pipeDark = new THREE.MeshStandardMaterial({ color: 0x176d35, roughness: 0.42 });
@@ -397,7 +451,11 @@
       velocity = 0;
       bird.visible = true;
       cat.visible = false;
+      bloodGroup.visible = false;
+      bloodGroup.clear();
+      bloodParticles.length = 0;
       catPhase = "idle";
+      catEatTime = 0;
       catHead.rotation.z = 0;
       bird.position.set(-1.5, 0, 1);
       bird.rotation.z = 0;
@@ -539,10 +597,19 @@
       } else if (catPhase === "eating") {
         catEatTime += delta;
         catHead.rotation.z = Math.sin(catEatTime * 15) * 0.22 - 0.18;
-        if (catEatTime > 0.55) {
+        if (catEatTime > 0.55 && bird.visible) {
           bird.visible = false;
           catHead.rotation.z = -0.12;
+          burstBlood();
         }
+      }
+      if (bloodGroup.visible) {
+        bloodParticles.forEach(particle => {
+          particle.velocity.y -= 5.5 * delta;
+          particle.mesh.position.addScaledVector(particle.velocity, delta);
+          particle.mesh.scale.multiplyScalar(Math.max(0, 1 - delta * 0.45));
+        });
+        if (catEatTime > 2.8) bloodGroup.visible = false;
       }
       renderer.render(scene, camera);
     }
