@@ -292,8 +292,15 @@
     const catCream = new THREE.MeshStandardMaterial({ color: 0xf0d7ad, roughness: 0.95 });
     const catDark = new THREE.MeshStandardMaterial({ color: 0x593b2b, roughness: 0.8 });
     const catEye = new THREE.MeshStandardMaterial({ color: 0x17251a, roughness: 0.3 });
-    ellipsoid(cat, catFur, [0.05, 0, 0], [0.48, 0.23, 0.2], 24);
-    ellipsoid(cat, catCream, [-0.03, -0.13, 0.17], [0.28, 0.09, 0.055], 20);
+    const catIris = new THREE.MeshStandardMaterial({ color: 0x9a9a45, roughness: 0.35 });
+    const catPupil = new THREE.MeshBasicMaterial({ color: 0x10130d });
+    const catFurDark = new THREE.MeshStandardMaterial({ color: 0x8a542f, roughness: 0.95 });
+    const catEarPink = new THREE.MeshStandardMaterial({ color: 0xb97870, roughness: 0.9 });
+    ellipsoid(cat, catFur, [0.05, 0, 0], [0.53, 0.245, 0.205], 32);
+    ellipsoid(cat, catFur, [0.31, -0.015, 0.015], [0.24, 0.25, 0.19], 24);
+    ellipsoid(cat, catFur, [-0.23, -0.015, 0.015], [0.23, 0.26, 0.19], 24);
+    ellipsoid(cat, catCream, [-0.03, -0.13, 0.17], [0.29, 0.105, 0.06], 24);
+    ellipsoid(cat, catCream, [-0.25, 0.015, 0.16], [0.13, 0.19, 0.065], 20);
     const catHead = new THREE.Group();
     catHead.position.set(-0.34, 0.13, 0.02);
     cat.add(catHead);
@@ -303,8 +310,14 @@
       ear.position.set(side * 0.15, 0.2, 0);
       ear.rotation.z = side * -0.2;
       catHead.add(ear);
-      ellipsoid(catHead, catCream, [side * 0.105, 0.015, 0.19], [0.035, 0.055, 0.018], 12);
-      ellipsoid(catHead, catEye, [side * 0.105, 0.035, 0.205], [0.018, 0.032, 0.012], 12);
+      const innerEar = new THREE.Mesh(new THREE.ConeGeometry(0.065, 0.16, 4), catEarPink);
+      innerEar.position.set(side * 0.15, 0.205, 0.075);
+      innerEar.rotation.z = side * -0.2;
+      catHead.add(innerEar);
+      ellipsoid(catHead, catCream, [side * 0.105, 0.015, 0.19], [0.052, 0.073, 0.025], 16);
+      ellipsoid(catHead, catIris, [side * 0.105, 0.035, 0.216], [0.034, 0.048, 0.02], 16);
+      ellipsoid(catHead, catPupil, [side * 0.105, 0.035, 0.234], [0.012, 0.038, 0.012], 12);
+      ellipsoid(catHead, white, [side * 0.115, 0.054, 0.245], [0.009, 0.012, 0.006], 10);
     }
     ellipsoid(catHead, catCream, [-0.04, -0.09, 0.17], [0.13, 0.075, 0.07], 16);
     ellipsoid(catHead, catDark, [-0.07, -0.055, 0.235], [0.035, 0.025, 0.015], 12);
@@ -331,20 +344,38 @@
       stripe.rotation.z = -0.2;
       catHead.add(stripe);
     }
-    const catTail = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.065, 0.72, 10), catFur);
-    catTail.position.set(0.48, 0.28, -0.02);
-    catTail.rotation.z = -1.05;
+    const tailCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.43, 0.08, -0.02),
+      new THREE.Vector3(0.68, 0.12, -0.02),
+      new THREE.Vector3(0.86, 0.38, -0.02),
+      new THREE.Vector3(0.82, 0.67, -0.02),
+      new THREE.Vector3(0.65, 0.78, -0.02)
+    ]);
+    const catTail = new THREE.Mesh(new THREE.TubeGeometry(tailCurve, 24, 0.052, 9, false), catFur);
     cat.add(catTail);
+    // Subtle tabby bands follow the visible flank rather than looking like flat stickers.
+    for (let i = 0; i < 4; i++) {
+      const x = -0.12 + i * 0.16;
+      const stripeCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(x - 0.055, 0.19, 0.17),
+        new THREE.Vector3(x, 0.08, 0.205),
+        new THREE.Vector3(x + 0.045, -0.02, 0.19)
+      ]);
+      cat.add(new THREE.Mesh(new THREE.TubeGeometry(stripeCurve, 10, 0.018, 6, false), catFurDark));
+    }
     const catLegs = [];
     for (const x of [-0.2, 0.28]) {
       for (const z of [-0.12, 0.13]) {
         const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.045, 0.3, 10), catFur);
         leg.position.set(x, -0.2, z);
         cat.add(leg);
-        const paw = new THREE.Mesh(new THREE.SphereGeometry(0.09, 14, 10), catCream);
-        paw.scale.set(1.15, 0.58, 1);
-        paw.position.set(x - 0.015, -0.34, z + 0.015);
+        const paw = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 12), catCream);
+        paw.scale.set(1.2, 0.62, 1.05);
+        paw.position.set(x - 0.025, -0.34, z + 0.015);
         cat.add(paw);
+        for (let toe = -1; toe <= 1; toe++) {
+          ellipsoid(cat, catCream, [x - 0.075, -0.345, z + toe * 0.035], [0.045, 0.035, 0.025], 10);
+        }
         catLegs.push(leg);
       }
     }
@@ -622,10 +653,13 @@
         cloud.position.x -= delta * 0.22;
         if (cloud.position.x < -8) cloud.position.x = 9 + i * 0.35;
       });
-      // Gentle wing movement is always visible, even while waiting on the start screen.
+      // Wings flap in flight and on the ready screen, but freeze immediately on any collision.
+      const wingAmount = state === "playing" ? 0.82 : state === "ready" ? 0.38 : 0;
       const wingBeat = Math.sin(elapsed * (state === "playing" ? 24 : 8));
-      wingNear.rotation.z = wingBeat * (state === "playing" ? 0.82 : 0.38);
-      farWing.rotation.z = -wingBeat * (state === "playing" ? 0.68 : 0.3);
+      if (wingAmount > 0) {
+        wingNear.rotation.z = wingBeat * wingAmount;
+        farWing.rotation.z = -wingBeat * wingAmount * 0.83;
+      }
       if (state === "playing") {
         velocity -= 12.5 * delta;
         bird.position.y += velocity * delta;
@@ -701,6 +735,8 @@
       if (catPhase === "running") {
         cat.position.x = Math.max(bird.position.x + 0.52, cat.position.x - 5.2 * delta);
         const runBeat = Math.sin(elapsed * 19);
+        catTail.rotation.z = Math.sin(elapsed * 5) * 0.13;
+        catHead.rotation.z = Math.sin(elapsed * 9) * 0.035;
         catLegs.forEach((leg, i) => { leg.rotation.z = runBeat * (i % 2 ? 0.55 : -0.55); });
         if (cat.position.x <= bird.position.x + 0.52) {
           catPhase = "eating";
@@ -709,6 +745,7 @@
         }
       } else if (catPhase === "eating") {
         catEatTime += delta;
+        catTail.rotation.z = Math.sin(catEatTime * 3.5) * 0.08;
         catHead.rotation.z = Math.sin(catEatTime * 15) * 0.22 - 0.18;
         if (catEatTime > 0.55 && bird.visible) {
           bird.visible = false;
