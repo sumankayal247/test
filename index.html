@@ -254,13 +254,41 @@
       }
     });
     const roastableMaterials = [sparrowBrown, crownBrown, darkBrown, wingBrown, featherDark, buff, cream, legMat];
+    const roastGroup = new THREE.Group();
+    const roastSkin = new THREE.MeshStandardMaterial({ color: 0xc98232, roughness: 0.34, metalness: 0.02 });
+    const roastLight = new THREE.MeshStandardMaterial({ color: 0xe6a64d, roughness: 0.38 });
+    const roastShadow = new THREE.MeshStandardMaterial({ color: 0x98501f, roughness: 0.62 });
+    // A plump roasted carcass with tucked wings and two rounded drumsticks.
+    ellipsoid(roastGroup, roastSkin, [-0.015, -0.015, 0.025], [0.52, 0.34, 0.32], 32);
+    ellipsoid(roastGroup, roastLight, [0.055, 0.035, 0.29], [0.35, 0.22, 0.075], 28);
+    for (const side of [-1, 1]) {
+      const thigh = ellipsoid(roastGroup, roastSkin, [-0.19, 0.16, side * 0.13], [0.18, 0.13, 0.13], 24);
+      thigh.rotation.z = side * -0.35;
+      const drumstick = ellipsoid(roastGroup, roastSkin, [-0.26, 0.29, side * 0.15], [0.105, 0.24, 0.095], 24);
+      drumstick.rotation.z = 0.42;
+      ellipsoid(roastGroup, roastLight, [-0.27, 0.48, side * 0.15], [0.12, 0.075, 0.09], 20);
+      const wing = ellipsoid(roastGroup, roastSkin, [0.19, -0.04, side * 0.23], [0.23, 0.13, 0.095], 24);
+      wing.rotation.z = side * 0.22;
+    }
+    for (let i = 0; i < 6; i++) {
+      const toast = ellipsoid(roastGroup, i % 2 ? roastShadow : roastLight,
+        [-0.25 + (i % 3) * 0.2, -0.12 + Math.floor(i / 3) * 0.18, 0.345],
+        [0.075, 0.035, 0.018], 16);
+      toast.rotation.z = (i % 2 ? -0.35 : 0.3);
+    }
+    bird.add(roastGroup);
+    roastGroup.visible = false;
     function roastBird() {
-      const roastColor = new THREE.Color(0xb9672e);
-      roastableMaterials.forEach(material => material.color.copy(material.color).lerp(roastColor, 0.82));
-      roastMarks.visible = true;
+      bird.children.forEach(child => {
+        if (child !== roastGroup && child !== birdStars) child.visible = false;
+      });
+      roastGroup.visible = true;
+      birdStars.visible = false;
     }
     function restoreBirdColors() {
       birdOriginalColors.forEach((color, material) => material.color.copy(color));
+      bird.children.forEach(child => { if (child !== roastGroup) child.visible = true; });
+      roastGroup.visible = false;
       roastMarks.visible = false;
     }
     const roastMarks = new THREE.Group();
@@ -300,6 +328,10 @@
     ellipsoid(cat, catFur, [0.31, -0.015, 0.015], [0.24, 0.25, 0.19], 24);
     ellipsoid(cat, catFur, [-0.23, -0.015, 0.015], [0.23, 0.26, 0.19], 24);
     ellipsoid(cat, catCream, [-0.03, -0.13, 0.17], [0.29, 0.105, 0.06], 24);
+    // Soft chest bib and rounded shoulder/haunch contours break up the single-body silhouette.
+    ellipsoid(cat, catCream, [-0.31, -0.075, 0.13], [0.19, 0.2, 0.105], 24);
+    ellipsoid(cat, catFur, [0.34, -0.025, 0.035], [0.19, 0.22, 0.17], 24);
+    ellipsoid(cat, catFur, [-0.37, -0.025, 0.035], [0.18, 0.22, 0.17], 24);
     ellipsoid(cat, catCream, [-0.25, 0.015, 0.16], [0.13, 0.19, 0.065], 20);
     const catHead = new THREE.Group();
     catHead.position.set(-0.34, 0.13, 0.02);
@@ -319,6 +351,9 @@
       ellipsoid(catHead, catPupil, [side * 0.105, 0.035, 0.234], [0.012, 0.038, 0.012], 12);
       ellipsoid(catHead, white, [side * 0.115, 0.054, 0.245], [0.009, 0.012, 0.006], 10);
     }
+    // Full cheek pads and a small chin give the muzzle a softer feline profile.
+    ellipsoid(catHead, catCream, [-0.17, -0.075, 0.16], [0.105, 0.085, 0.075], 18);
+    ellipsoid(catHead, catCream, [0.015, -0.075, 0.16], [0.105, 0.085, 0.075], 18);
     ellipsoid(catHead, catCream, [-0.04, -0.09, 0.17], [0.13, 0.075, 0.07], 16);
     ellipsoid(catHead, catDark, [-0.07, -0.055, 0.235], [0.035, 0.025, 0.015], 12);
     // Nose, mouth, whisker pads and fine whiskers make the face more expressive.
@@ -366,8 +401,9 @@
     const catLegs = [];
     for (const x of [-0.2, 0.28]) {
       for (const z of [-0.12, 0.13]) {
-        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.045, 0.3, 10), catFur);
-        leg.position.set(x, -0.2, z);
+        const upperLeg = ellipsoid(cat, catFur, [x, -0.12, z], [0.105, 0.17, 0.095], 16);
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.047, 0.04, 0.22, 12), catFur);
+        leg.position.set(x - 0.005, -0.245, z + 0.005);
         cat.add(leg);
         const paw = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 12), catCream);
         paw.scale.set(1.2, 0.62, 1.05);
@@ -418,18 +454,32 @@
     const pipeRadius = 0.43;
     const flameMaterial = new THREE.MeshBasicMaterial({ color: 0xff6a16, transparent: true, opacity: 0.92 });
     const flameCoreMaterial = new THREE.MeshBasicMaterial({ color: 0xffe45c, transparent: true, opacity: 0.95 });
+    function makeFlameTongue(material, width, height, bend, z) {
+      const shape = new THREE.Shape();
+      shape.moveTo(-width * 0.48, 0);
+      shape.bezierCurveTo(-width * 0.62, height * 0.28, bend - width * 0.32, height * 0.66, bend, height);
+      shape.bezierCurveTo(bend + width * 0.34, height * 0.68, width * 0.62, height * 0.28, width * 0.48, 0);
+      shape.quadraticCurveTo(0, -0.04, -width * 0.48, 0);
+      const mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape, 24), material);
+      mesh.position.z = z;
+      return mesh;
+    }
     function makeFlame(positionY, pointsDown = false) {
       const flame = new THREE.Group();
       flame.position.set(0, positionY, 0.72);
-      flame.scale.set(1.55, 1.55, 1.25);
+      flame.scale.set(1.35, 1.45, 1);
       if (pointsDown) flame.rotation.z = Math.PI;
+      // Smooth Bézier silhouettes overlap like real tongues of fire instead of sharp cones.
       for (let i = 0; i < 5; i++) {
-        const outer = new THREE.Mesh(new THREE.ConeGeometry(0.29 - (i % 3) * 0.035, 0.88 - (i % 2) * 0.12, 9), flameMaterial);
-        outer.position.set((i - 2) * 0.19, 0.32 + (i % 2) * 0.08, 0);
-        outer.rotation.z = (i - 2) * 0.2;
+        const offset = (i - 2) * 0.13;
+        const outer = makeFlameTongue(flameMaterial, 0.42 - Math.abs(i - 2) * 0.035, 0.78 + (i % 2) * 0.12, (i % 2 ? 0.09 : -0.07), 0);
+        outer.position.x = offset;
+        outer.rotation.z = (i - 2) * 0.075;
         flame.add(outer);
-        const core = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.58, 9), flameCoreMaterial);
-        core.position.set((i - 2) * 0.19, 0.23, 0.035);
+        const core = makeFlameTongue(flameCoreMaterial, 0.23, 0.53, (i % 2 ? 0.035 : -0.025), 0.025);
+        core.position.x = offset * 0.72;
+        core.position.y = 0.015;
+        core.scale.set(0.72, 0.82, 1);
         flame.add(core);
       }
       flame.visible = false;
@@ -586,6 +636,9 @@
       state = "over";
       crashSound();
       crashMode = reason;
+      // Freeze both wings in a relaxed, folded position as soon as the bird crashes.
+      wingNear.rotation.z = 0;
+      farWing.rotation.z = 0;
       if (reason === "ground") {
         cat.visible = true;
         cat.position.set(8, -3.45, 2);
@@ -726,8 +779,8 @@
             flame.children.forEach((part, index) => {
               const flicker = 1 + Math.sin(elapsed * 22 + index * 1.7 + i) * 0.32;
               part.scale.y = flicker;
-              part.scale.x = 0.88 + Math.cos(elapsed * 17 + index + i) * 0.2;
-              part.rotation.z += delta * (index % 2 ? 2.8 : -2.2);
+              part.scale.x = 0.9 + Math.cos(elapsed * 9 + index * 0.8 + i) * 0.09;
+              part.rotation.z = Math.sin(elapsed * 5 + index * 0.7 + i) * 0.045;
             });
           }
         }));
