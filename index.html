@@ -445,8 +445,8 @@
           pipe.group.position.x -= 3.1 * delta;
           const bx = bird.position.x;
           const by = bird.position.y;
-          const birdRadius = 0.29;
-          const withinX = Math.abs(pipe.group.position.x - bx) < pipeWidth / 2 + birdRadius;
+          const birdRadius = 0.36;
+          const withinX = Math.abs(pipe.group.position.x - bx) < pipeRadius + 0.48;
           const outsideGap = by - birdRadius < pipe.gapY - gap / 2 || by + birdRadius > pipe.gapY + gap / 2;
           if (withinX && outsideGap) endGame();
           if (!pipe.scored && pipe.group.position.x + pipeWidth / 2 < bx) {
