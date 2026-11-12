@@ -1,16 +1,24 @@
 # Flappy Bird 3D
 
-A tiny Flappy Bird-inspired game built with [Three.js](https://threejs.org/). No build step or installation required.
+A small Flappy Bird-inspired game built with [Three.js](https://threejs.org/). No build step or installation required.
 
 ## Play
 
 **[Play Flappy Bird 3D](https://sumankayal247.github.io/test/)**
 
+## Features
+
+- 3D bird with continuously animated, visibly flapping wings
+- Layered city skyline with rooftop details and illuminated windows
+- Smooth day, sunset and night cycle with a sun, moon and stars
+- Synthesized flap, point and crash sound effects (no external audio files)
+- Score counter, pipe obstacles and responsive touch controls
+
 ## Controls
 
 - **Space / Up Arrow** — flap
 - **Mouse click / Touch** — flap
-- Avoid the pipes and try to beat your high score!
+- Pass through the pipes to earn points and avoid collisions.
 
 ## Run locally
 
