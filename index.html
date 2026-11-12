@@ -247,6 +247,30 @@
     bird.position.set(-1.5, 0, 1);
     bird.scale.setScalar(0.63);
     scene.add(bird);
+    const birdOriginalColors = new Map();
+    bird.traverse(object => {
+      if (object.isMesh && object.material && object.material.color && !birdOriginalColors.has(object.material)) {
+        birdOriginalColors.set(object.material, object.material.color.clone());
+      }
+    });
+    function roastBird() {
+      const burntColor = new THREE.Color(0x75402b);
+      birdOriginalColors.forEach((color, material) => material.color.copy(color).lerp(burntColor, 0.48));
+    }
+    function restoreBirdColors() {
+      birdOriginalColors.forEach((color, material) => material.color.copy(color));
+    }
+
+    // Spinning stars show a dazed bird after it strikes the solid pipe body.
+    const birdStars = new THREE.Group();
+    const starMaterial = new THREE.MeshBasicMaterial({ color: 0xffdf55 });
+    for (let i = 0; i < 3; i++) {
+      const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.09, 0), starMaterial);
+      star.position.set(0.18 + Math.cos(i * Math.PI * 2 / 3) * 0.27, 0.66 + Math.sin(i * Math.PI * 2 / 3) * 0.12, 0.42);
+      birdStars.add(star);
+    }
+    bird.add(birdStars);
+    birdStars.visible = false;
 
     // A small street cat runs over and eats the sparrow if it lands on the ground.
     const cat = new THREE.Group();
@@ -347,6 +371,23 @@
     const pipeDark = new THREE.MeshStandardMaterial({ color: 0x176d35, roughness: 0.42 });
     const pipes = [];
     const pipeRadius = 0.43;
+    const flameMaterial = new THREE.MeshBasicMaterial({ color: 0xff6a16, transparent: true, opacity: 0.92 });
+    const flameCoreMaterial = new THREE.MeshBasicMaterial({ color: 0xffe45c, transparent: true, opacity: 0.95 });
+    function makeFlame(positionY) {
+      const flame = new THREE.Group();
+      flame.position.set(0, positionY, 0.62);
+      for (let i = 0; i < 3; i++) {
+        const outer = new THREE.Mesh(new THREE.ConeGeometry(0.16 - i * 0.025, 0.48 - i * 0.045, 7), flameMaterial);
+        outer.position.set((i - 1) * 0.17, 0.13 + (i % 2) * 0.05, 0);
+        outer.rotation.z = (i - 1) * 0.28;
+        flame.add(outer);
+        const core = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.27, 7), flameCoreMaterial);
+        core.position.set((i - 1) * 0.17, 0.08, 0.025);
+        flame.add(core);
+      }
+      flame.visible = false;
+      return flame;
+    }
     const pipeWidth = pipeRadius * 2;
     const gap = 2.05;
     let nextPipeX = 6.5;
@@ -383,9 +424,12 @@
       }
       addPipe(4 - topHeight / 2, topHeight, true);
       addPipe(-4 + bottomHeight / 2, bottomHeight, false);
+      const topFlames = makeFlame(gapY + gap / 2);
+      const bottomFlames = makeFlame(gapY - gap / 2);
+      group.add(topFlames, bottomFlames);
       group.position.set(x, 0, 0);
       scene.add(group);
-      const item = { group, gapY, scored: false };
+      const item = { group, gapY, scored: false, flames: [topFlames, bottomFlames] };
       pipes.push(item);
       return item;
     }
@@ -440,6 +484,9 @@
     let state = "ready";
     let velocity = 0;
     let score = 0;
+    let crashMode = "";
+    let crashFall = false;
+    let crashSlide = 0;
     let cycleTime = 0;
     const cycleDuration = 70;
 
@@ -457,6 +504,11 @@
       catPhase = "idle";
       catEatTime = 0;
       catHead.rotation.z = 0;
+      crashMode = "";
+      crashFall = false;
+      crashSlide = 0;
+      restoreBirdColors();
+      birdStars.visible = false;
       bird.position.set(-1.5, 0, 1);
       bird.rotation.z = 0;
       wingNear.rotation.z = 0;
@@ -482,16 +534,25 @@
       bird.rotation.z = 0.28;
       flapSound();
     }
-    function endGame(reason = "") {
+    function endGame(reason = "", hitPipe = null) {
       if (state !== "playing") return;
       state = "over";
       crashSound();
+      crashMode = reason;
       if (reason === "ground") {
         cat.visible = true;
         cat.position.set(8, -3.45, 2);
         catPhase = "running";
         catEatTime = 0;
         bird.visible = true;
+      } else if (reason === "pipe-gap") {
+        hitPipe?.flames.forEach(flame => { flame.visible = true; });
+        roastBird();
+        bird.rotation.z = -0.12;
+      } else if (reason === "pipe-side") {
+        birdStars.visible = true;
+        crashFall = true;
+        crashSlide = 1.35;
       }
       panelTitle.textContent = "Flight Over!";
       panelCopy.innerHTML = "You scored <strong>" + score + "</strong> point" + (score === 1 ? "" : "s") + ".<br>Take off again and beat your best!";
@@ -559,8 +620,13 @@
           const by = bird.position.y;
           const birdRadius = 0.25;
           const withinX = Math.abs(pipe.group.position.x - bx) < pipeRadius + 0.35;
-          const outsideGap = by - birdRadius < pipe.gapY - gap / 2 || by + birdRadius > pipe.gapY + gap / 2;
-          if (withinX && outsideGap) endGame();
+          const gapBottom = pipe.gapY - gap / 2;
+          const gapTop = pipe.gapY + gap / 2;
+          const outsideGap = by - birdRadius < gapBottom || by + birdRadius > gapTop;
+          if (withinX && outsideGap) {
+            const birdCenterInsideOpening = by > gapBottom && by < gapTop;
+            endGame(birdCenterInsideOpening ? "pipe-gap" : "pipe-side", pipe);
+          }
           if (!pipe.scored && pipe.group.position.x + pipeWidth / 2 < bx) {
             pipe.scored = true;
             score++;
@@ -584,6 +650,36 @@
       } else if (state === "ready") {
         bird.position.y = Math.sin(elapsed * 2.5) * 0.12;
         bird.rotation.z = Math.sin(elapsed * 2.5) * 0.05;
+      } else if (state === "over" && crashMode === "pipe-side" && crashFall) {
+        velocity -= 12.5 * delta;
+        bird.position.y += velocity * delta;
+        bird.position.x += crashSlide * delta;
+        crashSlide = Math.max(0, crashSlide - 1.8 * delta);
+        bird.rotation.z -= 4.8 * delta;
+        if (bird.position.y <= -3.35) {
+          bird.position.y = -3.35;
+          crashFall = false;
+          bird.rotation.z = -0.08;
+          birdStars.visible = false;
+          cat.visible = true;
+          cat.position.set(8, -3.45, 2);
+          catPhase = "running";
+          catEatTime = 0;
+        }
+      }
+      if (birdStars.visible) {
+        birdStars.rotation.y += delta * 7;
+        birdStars.rotation.z += delta * 4;
+      }
+      if (state === "over" && crashMode === "pipe-gap") {
+        pipes.forEach(pipe => pipe.flames.forEach((flame, i) => {
+          if (flame.visible) {
+            flame.children.forEach((part, index) => {
+              part.scale.y = 0.82 + Math.sin(elapsed * 18 + index * 1.7 + i) * 0.28;
+              part.rotation.z += delta * (index % 2 ? 1.8 : -1.4);
+            });
+          }
+        }));
       }
       if (catPhase === "running") {
         cat.position.x = Math.max(bird.position.x + 0.52, cat.position.x - 5.2 * delta);
