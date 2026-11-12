@@ -253,13 +253,27 @@
         birdOriginalColors.set(object.material, object.material.color.clone());
       }
     });
+    const roastableMaterials = [sparrowBrown, crownBrown, darkBrown, wingBrown, featherDark, buff, cream, legMat];
     function roastBird() {
-      const burntColor = new THREE.Color(0x75402b);
-      birdOriginalColors.forEach((color, material) => material.color.copy(color).lerp(burntColor, 0.48));
+      const roastColor = new THREE.Color(0xb9672e);
+      roastableMaterials.forEach(material => material.color.copy(material.color).lerp(roastColor, 0.82));
+      roastMarks.visible = true;
     }
     function restoreBirdColors() {
       birdOriginalColors.forEach((color, material) => material.color.copy(color));
+      roastMarks.visible = false;
     }
+    const roastMarks = new THREE.Group();
+    const charMaterial = new THREE.MeshStandardMaterial({ color: 0x4b261b, roughness: 0.95 });
+    const roastHighlight = new THREE.MeshStandardMaterial({ color: 0xe6a04c, roughness: 0.7 });
+    for (let i = 0; i < 7; i++) {
+      const mark = new THREE.Mesh(new THREE.SphereGeometry(0.045 + (i % 3) * 0.012, 10, 8), i % 3 === 0 ? roastHighlight : charMaterial);
+      mark.position.set(-0.24 + (i % 4) * 0.14, -0.08 + Math.floor(i / 4) * 0.16, 0.3 + (i % 2) * 0.025);
+      mark.scale.set(1.35, 0.55, 0.35);
+      roastMarks.add(mark);
+    }
+    bird.add(roastMarks);
+    roastMarks.visible = false;
 
     // Spinning stars show a dazed bird after it strikes the solid pipe body.
     const birdStars = new THREE.Group();
@@ -373,16 +387,18 @@
     const pipeRadius = 0.43;
     const flameMaterial = new THREE.MeshBasicMaterial({ color: 0xff6a16, transparent: true, opacity: 0.92 });
     const flameCoreMaterial = new THREE.MeshBasicMaterial({ color: 0xffe45c, transparent: true, opacity: 0.95 });
-    function makeFlame(positionY) {
+    function makeFlame(positionY, pointsDown = false) {
       const flame = new THREE.Group();
-      flame.position.set(0, positionY, 0.62);
-      for (let i = 0; i < 3; i++) {
-        const outer = new THREE.Mesh(new THREE.ConeGeometry(0.16 - i * 0.025, 0.48 - i * 0.045, 7), flameMaterial);
-        outer.position.set((i - 1) * 0.17, 0.13 + (i % 2) * 0.05, 0);
-        outer.rotation.z = (i - 1) * 0.28;
+      flame.position.set(0, positionY, 0.72);
+      flame.scale.set(1.55, 1.55, 1.25);
+      if (pointsDown) flame.rotation.z = Math.PI;
+      for (let i = 0; i < 5; i++) {
+        const outer = new THREE.Mesh(new THREE.ConeGeometry(0.29 - (i % 3) * 0.035, 0.88 - (i % 2) * 0.12, 9), flameMaterial);
+        outer.position.set((i - 2) * 0.19, 0.32 + (i % 2) * 0.08, 0);
+        outer.rotation.z = (i - 2) * 0.2;
         flame.add(outer);
-        const core = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.27, 7), flameCoreMaterial);
-        core.position.set((i - 1) * 0.17, 0.08, 0.025);
+        const core = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.58, 9), flameCoreMaterial);
+        core.position.set((i - 2) * 0.19, 0.23, 0.035);
         flame.add(core);
       }
       flame.visible = false;
@@ -424,8 +440,8 @@
       }
       addPipe(4 - topHeight / 2, topHeight, true);
       addPipe(-4 + bottomHeight / 2, bottomHeight, false);
-      const topFlames = makeFlame(gapY + gap / 2);
-      const bottomFlames = makeFlame(gapY - gap / 2);
+      const topFlames = makeFlame(gapY + gap / 2, true);
+      const bottomFlames = makeFlame(gapY - gap / 2, false);
       group.add(topFlames, bottomFlames);
       group.position.set(x, 0, 0);
       scene.add(group);
@@ -660,7 +676,6 @@
           bird.position.y = -3.35;
           crashFall = false;
           bird.rotation.z = -0.08;
-          birdStars.visible = false;
           cat.visible = true;
           cat.position.set(8, -3.45, 2);
           catPhase = "running";
@@ -675,8 +690,10 @@
         pipes.forEach(pipe => pipe.flames.forEach((flame, i) => {
           if (flame.visible) {
             flame.children.forEach((part, index) => {
-              part.scale.y = 0.82 + Math.sin(elapsed * 18 + index * 1.7 + i) * 0.28;
-              part.rotation.z += delta * (index % 2 ? 1.8 : -1.4);
+              const flicker = 1 + Math.sin(elapsed * 22 + index * 1.7 + i) * 0.32;
+              part.scale.y = flicker;
+              part.scale.x = 0.88 + Math.cos(elapsed * 17 + index + i) * 0.2;
+              part.rotation.z += delta * (index % 2 ? 2.8 : -2.2);
             });
           }
         }));
@@ -695,6 +712,7 @@
         catHead.rotation.z = Math.sin(catEatTime * 15) * 0.22 - 0.18;
         if (catEatTime > 0.55 && bird.visible) {
           bird.visible = false;
+          birdStars.visible = false;
           catHead.rotation.z = -0.12;
           burstBlood();
         }
