@@ -150,61 +150,142 @@
       clouds.push(cloud);
     }
 
-    // Bird: separate wing pivots make the flapping motion clearly visible.
+    // Detailed 3D house sparrow: warm brown crown, streaked wings, buff breast,
+    // pale belly, facial markings, layered tail feathers and animated shoulder joints.
     const bird = new THREE.Group();
-    const yellow = new THREE.MeshStandardMaterial({ color: 0xffd34e, roughness: 0.48 });
-    const orange = new THREE.MeshStandardMaterial({ color: 0xff8b35, roughness: 0.5 });
-    const white = new THREE.MeshStandardMaterial({ color: 0xffffff });
-    const black = new THREE.MeshStandardMaterial({ color: 0x172c3b, roughness: 0.35 });
-    const body = new THREE.Mesh(new THREE.SphereGeometry(0.38, 24, 18), yellow);
-    body.scale.set(1.18, 0.9, 0.85);
-    bird.add(body);
-    const wingLeft = new THREE.Group();
-    wingLeft.position.set(-0.13, -0.02, 0.31);
-    const leftFeather = new THREE.Mesh(new THREE.SphereGeometry(0.23, 18, 14), orange);
-    leftFeather.scale.set(1.1, 0.55, 0.5);
-    leftFeather.position.set(-0.02, -0.12, 0);
-    wingLeft.add(leftFeather);
-    bird.add(wingLeft);
-    const wingRight = new THREE.Group();
-    wingRight.position.set(-0.12, -0.03, -0.28);
-    const rightFeather = new THREE.Mesh(new THREE.SphereGeometry(0.21, 18, 14), orange);
-    rightFeather.scale.set(1.05, 0.5, 0.5);
-    rightFeather.position.set(-0.02, -0.1, 0);
-    wingRight.add(rightFeather);
-    bird.add(wingRight);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 12), white);
-    eye.position.set(0.2, 0.13, 0.31);
-    bird.add(eye);
-    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 10), black);
-    pupil.position.set(0.23, 0.13, 0.375);
-    bird.add(pupil);
-    const beak = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.32, 4), orange);
-    beak.rotation.z = -Math.PI / 2;
-    beak.position.set(0.48, -0.01, 0);
-    bird.add(beak);
-    bird.position.set(-1.5, 0, 1);
-    scene.add(bird);
+    const featherMat = (color, roughness = 0.88) => new THREE.MeshStandardMaterial({ color, roughness, side: THREE.DoubleSide });
+    const sparrowBrown = featherMat(0x76503a);
+    const crownBrown = featherMat(0x67432f);
+    const darkBrown = featherMat(0x49372e);
+    const wingBrown = featherMat(0x806047);
+    const featherDark = featherMat(0x453b35);
+    const buff = featherMat(0xd8b98b);
+    const cream = featherMat(0xeee0c7);
+    const black = new THREE.MeshStandardMaterial({ color: 0x171513, roughness: 0.32 });
+    const beakMat = new THREE.MeshStandardMaterial({ color: 0x29221b, roughness: 0.55 });
+    const legMat = new THREE.MeshStandardMaterial({ color: 0xb77b42, roughness: 0.7 });
 
-    const pipeMaterial = new THREE.MeshStandardMaterial({ color: 0x36b94e, roughness: 0.65 });
-    const pipeEdgeMaterial = new THREE.MeshStandardMaterial({ color: 0x238d3d, roughness: 0.65 });
+    function ellipsoid(parent, material, position, scale, segments = 24) {
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, segments, Math.max(12, segments - 6)), material);
+      mesh.position.set(...position);
+      mesh.scale.set(...scale);
+      parent.add(mesh);
+      return mesh;
+    }
+    function makeFeather(parent, material, length, width, position, angle = 0, z = 0) {
+      const shape = new THREE.Shape();
+      shape.moveTo(0, 0);
+      shape.quadraticCurveTo(width * 0.52, length * 0.22, width * 0.42, length * 0.68);
+      shape.quadraticCurveTo(width * 0.28, length * 0.96, 0, length);
+      shape.quadraticCurveTo(-width * 0.28, length * 0.96, -width * 0.42, length * 0.68);
+      shape.quadraticCurveTo(-width * 0.52, length * 0.22, 0, 0);
+      const feather = new THREE.Mesh(new THREE.ShapeGeometry(shape, 8), material);
+      feather.position.set(position[0], position[1], position[2] + z);
+      feather.rotation.z = angle;
+      parent.add(feather);
+      return feather;
+    }
+
+    // Far wing sits behind the body; the near wing has individually layered flight feathers.
+    const farWing = new THREE.Group();
+    farWing.position.set(-0.18, 0.08, -0.28);
+    bird.add(farWing);
+    ellipsoid(farWing, sparrowBrown, [-0.17, -0.08, 0], [0.34, 0.16, 0.07]);
+    for (let i = 0; i < 6; i++) makeFeather(farWing, i % 2 ? darkBrown : wingBrown, 0.43 + (i % 3) * 0.055, 0.105, [-0.18 - i * 0.055, -0.08, 0.015], -0.5 - i * 0.12);
+
+    const torso = ellipsoid(bird, sparrowBrown, [-0.04, 0, 0], [0.43, 0.31, 0.29], 32);
+    torso.rotation.z = -0.08;
+    ellipsoid(bird, buff, [0.01, -0.12, 0.205], [0.34, 0.205, 0.105], 28);
+    ellipsoid(bird, cream, [0.04, -0.22, 0.19], [0.27, 0.105, 0.075], 24);
+    // Brown mantle and dark bib distinguish the familiar male house-sparrow markings.
+    ellipsoid(bird, wingBrown, [-0.2, 0.16, 0.02], [0.27, 0.16, 0.25], 24);
+    ellipsoid(bird, darkBrown, [0.27, 0.12, 0.205], [0.13, 0.17, 0.09], 22);
+    ellipsoid(bird, crownBrown, [0.31, 0.31, 0], [0.255, 0.245, 0.245], 32);
+    ellipsoid(bird, buff, [0.42, 0.16, 0.12], [0.17, 0.14, 0.16], 24);
+    // Tail feathers fan out behind the body.
+    for (let i = 0; i < 5; i++) makeFeather(bird, i % 2 ? darkBrown : sparrowBrown, 0.58, 0.095, [-0.34 - i * 0.035, -0.015, -0.11 + i * 0.055], -1.32 + i * 0.12);
+
+    const wingNear = new THREE.Group();
+    wingNear.position.set(-0.18, 0.09, 0.275);
+    bird.add(wingNear);
+    ellipsoid(wingNear, wingBrown, [-0.13, -0.04, 0], [0.31, 0.16, 0.075], 22);
+    for (let i = 0; i < 7; i++) {
+      const angle = -0.42 - i * 0.105;
+      makeFeather(wingNear, i % 3 === 0 ? featherDark : (i % 2 ? sparrowBrown : wingBrown),
+        0.47 + (i % 3) * 0.055, 0.105, [-0.12 - i * 0.045, -0.055, 0.018], angle);
+    }
+    // Two pale wing bars and small dark feather markings add natural plumage detail.
+    for (let i = 0; i < 5; i++) {
+      makeFeather(wingNear, buff, 0.22, 0.035, [-0.12 - i * 0.047, 0.025, 0.032], -0.95);
+      makeFeather(wingNear, darkBrown, 0.19, 0.025, [-0.14 - i * 0.045, -0.035, 0.034], -0.95);
+    }
+
+    // Face: dark eye stripe, subtle pale eye ring, glossy eye and short conical seed beak.
+    ellipsoid(bird, buff, [0.43, 0.31, 0.205], [0.145, 0.095, 0.045], 20);
+    ellipsoid(bird, darkBrown, [0.405, 0.305, 0.246], [0.105, 0.045, 0.025], 20);
+    ellipsoid(bird, cream, [0.43, 0.325, 0.27], [0.073, 0.073, 0.025], 20);
+    ellipsoid(bird, black, [0.445, 0.326, 0.292], [0.045, 0.05, 0.025], 18);
+    ellipsoid(bird, white, [0.46, 0.345, 0.312], [0.012, 0.014, 0.008], 12);
+    const beak = new THREE.Mesh(new THREE.ConeGeometry(0.105, 0.25, 5), beakMat);
+    beak.rotation.z = -Math.PI / 2;
+    beak.position.set(0.62, 0.19, 0.08);
+    bird.add(beak);
+    // Thin legs and toes remain visible beneath the belly.
+    for (const z of [-0.09, 0.12]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.2, 8), legMat);
+      leg.position.set(0.02, -0.34, z);
+      bird.add(leg);
+      for (let toe = -1; toe <= 1; toe++) {
+        const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.015, 0.105, 7), legMat);
+        foot.rotation.z = Math.PI / 2 + toe * 0.32;
+        foot.position.set(0.07 + toe * 0.035, -0.435, z);
+        bird.add(foot);
+      }
+    }
+    bird.position.set(-1.5, 0, 1);
+    bird.scale.setScalar(0.9);
+    scene.add(bird);
+    const pipeMaterial = new THREE.MeshStandardMaterial({ color: 0x279b42, roughness: 0.3, metalness: 0.08 });
+    const pipeHighlight = new THREE.MeshStandardMaterial({ color: 0x68d879, roughness: 0.28, metalness: 0.06 });
+    const pipeDark = new THREE.MeshStandardMaterial({ color: 0x176d35, roughness: 0.42 });
     const pipes = [];
-    const pipeWidth = 0.78;
+    const pipeRadius = 0.43;
+    const pipeWidth = pipeRadius * 2;
     const gap = 2.05;
+    let nextPipeX = 6.5;
+
     function makePipe(x, gapY) {
       const group = new THREE.Group();
-      const topHeight = 4 - (gapY + gap / 2);
-      const bottomHeight = gapY - gap / 2 + 4;
-      function addPipe(y, h, upsideDown) {
-        const shaft = new THREE.Mesh(new THREE.BoxGeometry(pipeWidth, h, 0.8), pipeMaterial);
+      const topHeight = Math.max(0.2, 4 - (gapY + gap / 2));
+      const bottomHeight = Math.max(0.2, gapY - gap / 2 + 4);
+      function addPipe(y, height, upsideDown) {
+        // Cylinders, thick collars and raised rings give the obstacles a rounded 3D profile.
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius * 0.91, pipeRadius, height, 32, 1), pipeMaterial);
         shaft.position.y = y;
+        shaft.castShadow = true;
+        shaft.receiveShadow = true;
         group.add(shaft);
-        const cap = new THREE.Mesh(new THREE.BoxGeometry(pipeWidth + 0.2, 0.22, 0.9), pipeEdgeMaterial);
-        cap.position.y = upsideDown ? y - h / 2 + 0.12 : y + h / 2 - 0.12;
+
+        const capY = upsideDown ? y - height / 2 + 0.13 : y + height / 2 - 0.13;
+        const cap = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius * 1.23, pipeRadius * 1.23, 0.25, 32), pipeDark);
+        cap.position.y = capY;
+        cap.castShadow = true;
         group.add(cap);
+        const lip = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius * 1.18, pipeRadius * 1.18, 0.12, 32), pipeHighlight);
+        lip.position.y = capY + (upsideDown ? -0.105 : 0.105);
+        group.add(lip);
+
+        const collar = new THREE.Mesh(new THREE.CylinderGeometry(pipeRadius * 0.94, pipeRadius * 0.94, 0.075, 32), pipeHighlight);
+        collar.position.y = upsideDown ? y + height * 0.28 : y - height * 0.28;
+        group.add(collar);
+
+        // A narrow raised highlight strip catches the changing city light.
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.055, Math.max(0.3, height - 0.35), 0.035), pipeHighlight);
+        stripe.position.set(-pipeRadius * 0.48, y, pipeRadius * 0.86);
+        group.add(stripe);
       }
-      if (topHeight > 0) addPipe(4 - topHeight / 2, topHeight, true);
-      if (bottomHeight > 0) addPipe(-4 + bottomHeight / 2, bottomHeight, false);
+      addPipe(4 - topHeight / 2, topHeight, true);
+      addPipe(-4 + bottomHeight / 2, bottomHeight, false);
       group.position.set(x, 0, 0);
       scene.add(group);
       const item = { group, gapY, scored: false };
@@ -212,6 +293,14 @@
       return item;
     }
 
+    function randomGapY(previousGapY = null) {
+      let value = THREE.MathUtils.randFloat(-0.9, 0.9);
+      // Avoid repeating the previous opening height; this also varies the flight path.
+      if (previousGapY !== null && Math.abs(value - previousGapY) < 0.42) {
+        value = value >= 0 ? value - 0.58 : value + 0.58;
+      }
+      return THREE.MathUtils.clamp(value, -1.0, 1.0);
+    }
     // Short synthesized effects keep the game self-contained: no external audio files.
     let audioContext = null;
     function playTone(frequency, endFrequency, duration, type, volume) {
@@ -265,10 +354,16 @@
       velocity = 0;
       bird.position.set(-1.5, 0, 1);
       bird.rotation.z = 0;
-      wingLeft.rotation.z = 0;
-      wingRight.rotation.z = 0;
-      makePipe(6.5, 0.1);
-      makePipe(12.5, -0.45);
+      wingNear.rotation.z = 0;
+      farWing.rotation.z = 0;
+      nextPipeX = THREE.MathUtils.randFloat(6.2, 7.2);
+      let previousGapY = randomGapY();
+      makePipe(nextPipeX, previousGapY);
+      for (let i = 1; i < 3; i++) {
+        nextPipeX += THREE.MathUtils.randFloat(6.4, 7.6);
+        previousGapY = randomGapY(previousGapY);
+        makePipe(nextPipeX, previousGapY);
+      }
     }
     function startGame() {
       resetGame();
@@ -339,9 +434,9 @@
         if (cloud.position.x < -8) cloud.position.x = 9 + i * 0.35;
       });
       // Gentle wing movement is always visible, even while waiting on the start screen.
-      const wingBeat = Math.sin(elapsed * (state === "playing" ? 22 : 8));
-      wingLeft.rotation.z = wingBeat * (state === "playing" ? 0.72 : 0.32);
-      wingRight.rotation.z = -wingBeat * (state === "playing" ? 0.62 : 0.28);
+      const wingBeat = Math.sin(elapsed * (state === "playing" ? 24 : 8));
+      wingNear.rotation.z = wingBeat * (state === "playing" ? 0.82 : 0.38);
+      farWing.rotation.z = -wingBeat * (state === "playing" ? 0.68 : 0.3);
       if (state === "playing") {
         velocity -= 12.5 * delta;
         bird.position.y += velocity * delta;
@@ -367,8 +462,10 @@
             pipes.splice(i, 1);
           }
         }
-        if (pipes.length < 3 && pipes[pipes.length - 1]?.group.position.x < 8) {
-          makePipe(7, THREE.MathUtils.randFloat(-0.65, 0.65));
+        if (pipes.length > 0 && pipes[pipes.length - 1].group.position.x < 8) {
+          const previousGapY = pipes[pipes.length - 1].gapY;
+          nextPipeX = pipes[pipes.length - 1].group.position.x + THREE.MathUtils.randFloat(6.4, 7.6);
+          makePipe(nextPipeX, randomGapY(previousGapY));
         }
         if (bird.position.y < -3.35 || bird.position.y > 3.75) endGame();
       } else if (state === "ready") {
